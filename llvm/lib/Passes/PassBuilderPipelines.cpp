@@ -157,6 +157,7 @@
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
+#include "llvm/Transforms/Obfuscation/Obfuscation.h"
 
 using namespace llvm;
 
@@ -1809,6 +1810,8 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
   if (EnableLoopTrapAnalysis)
     MPM.addPass(createModuleToFunctionPassAdaptor(LoopTrapAnalysisPass()));
   /* TO_UPSTREAM(BoundsSafety) OFF */
+  if (!isLTOPreLink(Phase))
+    MPM.addPass(ObfuscationPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -2008,6 +2011,7 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
     // globals in the object file.
     MPM.addPass(EliminateAvailableExternallyPass());
     MPM.addPass(GlobalDCEPass());
+    MPM.addPass(ObfuscationPass());
     return MPM;
   }
   if (!UseCtxProfile.empty()) {
@@ -2026,6 +2030,7 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
   if (EnableLoopTrapAnalysis)
     MPM.addPass(createModuleToFunctionPassAdaptor(LoopTrapAnalysisPass()));
   /* TO_UPSTREAM(BoundsSafety) OFF */
+  MPM.addPass(ObfuscationPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -2045,6 +2050,7 @@ PassBuilder::buildLTOPreLinkDefaultPipeline(OptimizationLevel Level) {
 ModulePassManager
 PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
                                      ModuleSummaryIndex *ExportSummary) {
+
   ModulePassManager MPM;
 
   instructionCountersPass(MPM, /* IsPreOptimization */ true);
@@ -2082,6 +2088,7 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
     if (EnableLoopTrapAnalysis)
       MPM.addPass(createModuleToFunctionPassAdaptor(LoopTrapAnalysisPass()));
     /* TO_UPSTREAM(BoundsSafety) OFF */
+    MPM.addPass(ObfuscationPass());
 
     // Emit annotation remarks.
     addAnnotationRemarksPass(MPM);
@@ -2175,6 +2182,7 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
     if (EnableLoopTrapAnalysis)
       MPM.addPass(createModuleToFunctionPassAdaptor(LoopTrapAnalysisPass()));
     /* TO_UPSTREAM(BoundsSafety) OFF */
+    MPM.addPass(ObfuscationPass());
 
     // Emit annotation remarks.
     addAnnotationRemarksPass(MPM);
@@ -2418,6 +2426,8 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   if (EnableLoopTrapAnalysis)
     MPM.addPass(createModuleToFunctionPassAdaptor(LoopTrapAnalysisPass()));
 
+  MPM.addPass(ObfuscationPass());
+
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
 
@@ -2548,6 +2558,9 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
 
   // Attach !implicit.ref metadata from all functions to copyright strings.
   MPM.addPass(LowerCommentStringPass());
+
+  if (!isLTOPreLink(Phase))
+    MPM.addPass(ObfuscationPass());
 
   if (isLTOPreLink(Phase))
     addRequiredLTOPreLinkPasses(MPM);
